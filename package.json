@@ -1,0 +1,14 @@
+{
+  "name": "ca_one_game_dev",
+  "version": "1.0.0",
+  "description": "A recreation of Tetris using the phaser 3 framework",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Glen Curtis - X00101556",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.4"
+  }
+}
