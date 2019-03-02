@@ -16,6 +16,7 @@ class mainGame extends Phaser.Scene {
     }
 
     create(){
+        this.timedEvent = this.time.addEvent({ delay: 1000, callback: onEvent, callbackScope: this, loop: true });
         this.currentPostition = 0;
         this.blocksIn = 4;
         this.add.image(335,245, 'Board');
@@ -37,6 +38,7 @@ class mainGame extends Phaser.Scene {
                 //drawNextTetrimino(this.nextTetrimino, this.nextTetrimino.colour, this.add);
                 this.board = updateBoard(this.board.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
             }
+            //TODO Add game-over screen when Tetriminos reach the top
         });
         this.input.keyboard.on('keydown-W', () => {
             this.board = changeState(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
@@ -47,6 +49,25 @@ class mainGame extends Phaser.Scene {
                 this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
             }
         })
+    }
+
+    update(){
+        if(this.timedEvent.repeat > 0){
+            // console.log(this.timedEvent);
+            // this.currentPostition++;
+            // this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
+            // if(this.board.end){
+            //     this.currentPostition = 0;
+            //     this.blocksIn = 4;
+            //     this.currentTetrimino = this.nextTetrimino;
+            //     this.nextTetrimino = getTetrimino();
+            //     //drawNextTetrimino(this.nextTetrimino, this.nextTetrimino.colour, this.add);
+            //     this.board = updateBoard(this.board.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
+            // }
+        }
+
+        //TODO Add game-over screen when Tetriminos reach the top
+        //console.log(this.timedEvent);
     }
 
 }
@@ -116,7 +137,6 @@ const redrawBoard = (board, context) => {
         horizontal = 108;
         verticle += 18;
     }
-
     return board;
 };
 
@@ -203,6 +223,8 @@ const getTetrimino = () => {
 }
 
 const updateBoard = (board, tetrimino, startingLine, blocksIn, context) => {
+    console.log(board)
+    console.log(tetrimino)
     let tetriminoCoords = getTetriminoState(tetrimino);
     let tetriIndex = 0;
     let horizontal = 108 + (18 * blocksIn);
@@ -348,5 +370,19 @@ const drawNextTetrimino = (tetrimino, colour, context) => {
         }
         horizontal = horizontalInit;
         verticle += 18;
+    }
+}
+
+function onEvent ()
+{
+    this.currentPostition++;
+    this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
+    if(this.board.end){
+        this.currentPostition = 0;
+        this.blocksIn = 4;
+        this.currentTetrimino = this.nextTetrimino;
+        this.nextTetrimino = getTetrimino();
+        //drawNextTetrimino(this.nextTetrimino, this.nextTetrimino.colour, this.add);
+        this.board = updateBoard(this.board.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
     }
 }
