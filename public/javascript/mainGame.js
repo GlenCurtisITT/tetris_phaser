@@ -118,7 +118,7 @@ const drawNextTetriminoWindow = (tetrimino, context) => {
 
 const changeState = (board, tetrimino, startingLine, blocksIn, context) => {
     //Deep copy object
-    let tempTetrimino = JSON.parse(JSON.stringify(tetrimino));
+    let tempTetrimino = Object.assign({}, tetrimino);
     tempTetrimino = changeTetriminoState(tempTetrimino);
     tempTetrimino = getTetriminoState(tempTetrimino);
     //Make sure when state is changed that the tetrimino does not go out of board
