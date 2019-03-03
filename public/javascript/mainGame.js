@@ -30,6 +30,8 @@ class mainGame extends Phaser.Scene {
         drawNextTetriminoWindow(this.nextTetrimino, this.add);
         this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
         this.input.keyboard.on('keydown-S', () => {
+            //Clear the images from memory to avoid memory leak
+            clearImagesFromCache(this.nextTetrimino, this.add);
             this.currentPostition++;
             this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'down');
             if(this.board.end){
@@ -50,10 +52,23 @@ class mainGame extends Phaser.Scene {
                 this.blocksIn--;
                 this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'left');
             }
-        })
+        });
+        this.input.keyboard.on('keydown-D', () => {
+           let tetriCoords = getTetriminoState(this.currentTetrimino);
+           if(this.blocksIn + tetriCoords[0].length !== 10){
+               this.blocksIn++;
+               this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'right');
+           }
+        });
     }
-
 }
+
+const clearImagesFromCache = (nextTetrimino, context) => {
+    //Images stored in this.add.displayList.list
+    context.displayList.list = [];
+    context.image(335,245, 'Board');
+    drawNextTetriminoWindow(nextTetrimino, context);
+};
 
 const createBoard = (horizontal, vertical) => {
     return [...Array(vertical)].map(x=>Array(horizontal).fill({value: -1, colour: 'Empty'}));
@@ -102,9 +117,17 @@ const drawNextTetriminoWindow = (tetrimino, context) => {
 };
 
 const changeState = (board, tetrimino, startingLine, blocksIn, context) => {
-    board = clearTetrimino(board, tetrimino, startingLine, blocksIn, context);
-    tetrimino = changeTetriminoState(tetrimino);
-    board = updateBoard(board, tetrimino, startingLine, blocksIn, context);
+    //Deep copy object
+    let tempTetrimino = JSON.parse(JSON.stringify(tetrimino));
+    tempTetrimino = changeTetriminoState(tempTetrimino);
+    tempTetrimino = getTetriminoState(tempTetrimino);
+    //Make sure when state is changed that the tetrimino does not go out of board
+    if(tempTetrimino[0].length + blocksIn <= 10){
+        board = clearTetrimino(board, tetrimino, startingLine, blocksIn, context);
+        tetrimino = changeTetriminoState(tetrimino);
+        board = updateBoard(board, tetrimino, startingLine, blocksIn, context);
+        return board;
+    }
     return board;
 };
 
@@ -141,6 +164,8 @@ const redrawBoard = (board, context) => {
         for(let j = 0; j < board[0].length; j++){
             if(board[i][j].value === -1){
                 context.image(horizontal, verticle, 'Empty');
+            }else{
+                context.image(horizontal, verticle, board[i][j].colour);
             }
             horizontal += 18;
         }
@@ -341,23 +366,19 @@ const updateBoard = (board, tetrimino, startingLine, blocksIn, context, movement
         }
         //zTwo
         if(tetrimino.tetrimino === 'zTwo' && tetrimino.state === 'initPosition'){
-            console.log('test1')
             board[startingLine][blocksIn+3] = {value: -1, colour: 'Empty'};
             board[startingLine+1][blocksIn+2] = {value: -1, colour: 'Empty'};
         }
         if(tetrimino.tetrimino === 'zTwo' && tetrimino.state === 'upsideDown'){
-            console.log('test2')
             board[startingLine][blocksIn+3] = {value: -1, colour: 'Empty'};
             board[startingLine+1][blocksIn+2] = {value: -1, colour: 'Empty'};
         }
         if(tetrimino.tetrimino === 'zTwo' && tetrimino.state === 'clockWise'){
-            console.log('test3')
             board[startingLine][blocksIn+1] = {value: -1, colour: 'Empty'};
             board[startingLine+1][blocksIn+2] = {value: -1, colour: 'Empty'};
             board[startingLine+2][blocksIn+2] = {value: -1, colour: 'Empty'};
         }
         if(tetrimino.tetrimino === 'zTwo' && tetrimino.state === 'counterClockwise'){
-            console.log('test4')
             board[startingLine][blocksIn+1] = {value: -1, colour: 'Empty'};
             board[startingLine+1][blocksIn+2] = {value: -1, colour: 'Empty'};
             board[startingLine+2][blocksIn+2] = {value: -1, colour: 'Empty'};
@@ -457,8 +478,132 @@ const updateBoard = (board, tetrimino, startingLine, blocksIn, context, movement
         }
     }
 
+    //Fix issues with blocks moving right
     if(movement === 'right'){
-
+        if(tetrimino.tetrimino === 'zOne' && tetrimino.state === 'initPosition'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'zOne' && tetrimino.state === 'upsideDown'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'zOne' && tetrimino.state === 'clockWise'){
+            board[startingLine][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'zOne' && tetrimino.state === 'counterClockwise'){
+            board[startingLine][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'zTwo' && tetrimino.state === 'initPosition'){
+            board[startingLine][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'zTwo' && tetrimino.state === 'upsideDown'){
+            board[startingLine][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'zTwo' && tetrimino.state === 'clockWise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'zTwo' && tetrimino.state === 'counterClockwise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'square' && tetrimino.state === 'initPosition'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'square' && tetrimino.state === 'clockWise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'square' && tetrimino.state === 'counterClockwise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'square' && tetrimino.state === 'upsideDown'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'line' && tetrimino.state === 'initPosition'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'line' && tetrimino.state === 'clockWise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+3][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'line' && tetrimino.state === 'counterClockwise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+3][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'line' && tetrimino.state === 'upsideDown'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'tBlock' && tetrimino.state === 'initPosition'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'tBlock' && tetrimino.state === 'clockWise'){
+            board[startingLine][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'tBlock' && tetrimino.state === 'counterClockwise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'tBlock' && tetrimino.state === 'upsideDown'){
+            board[startingLine][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'lOne' && tetrimino.state === 'initPosition'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn+1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'lOne' && tetrimino.state === 'clockWise'){
+            board[startingLine][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'lOne' && tetrimino.state === 'counterClockwise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'lOne' && tetrimino.state === 'upsideDown'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'lTwo' && tetrimino.state === 'initPosition'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'lTwo' && tetrimino.state === 'clockWise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'lTwo' && tetrimino.state === 'counterClockwise'){
+            board[startingLine][blocksIn-1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn] = {value: -1, colour: 'Empty'};
+            board[startingLine+2][blocksIn] = {value: -1, colour: 'Empty'};
+        }
+        if(tetrimino.tetrimino === 'lTwo' && tetrimino.state === 'upsideDown'){
+            board[startingLine][blocksIn+1] = {value: -1, colour: 'Empty'};
+            board[startingLine+1][blocksIn-1] = {value: -1, colour: 'Empty'};
+        }
     }
 
     board = redrawBoard(board, context);
