@@ -6,6 +6,7 @@ class mainGame extends Phaser.Scene {
     preload(){
         this.load.image('Board', 'assets/board.png');
         this.load.image('Empty', 'assets/emptyBlocko.png');
+        this.load.image('Black', 'assets/blackBlocko.png');
         this.load.image('NextWindow', 'assets/nextWindowBlocko.png');
         this.load.image('Red', 'assets/redBlocko.png');
         this.load.image('Yellow', 'assets/yellowBlocko.png');
@@ -17,7 +18,7 @@ class mainGame extends Phaser.Scene {
     }
 
     create(){
-        //this.timedEvent = this.time.addEvent({ delay: 1000, callback: onEvent, callbackScope: this, loop: true });
+        this.timedEvent = this.time.addEvent({ delay: 1000, callback: onEvent, callbackScope: this, loop: true });
         this.currentPostition = 0;
         this.blocksIn = 4;
         this.add.image(335,245, 'Board');
@@ -79,7 +80,7 @@ const drawBoard = (board, context) => {
     let verticle = 65;
     for(let i = 0; i < board.length; i++){
         for(let j = 0; j < board[0].length; j++){
-            context.image(horizontal, verticle, 'Empty');
+            context.image(horizontal, verticle, 'Black');
             horizontal += 18;
         }
         horizontal = 108;
@@ -163,7 +164,7 @@ const redrawBoard = (board, context) => {
     for(let i = 0; i < board.length; i++){
         for(let j = 0; j < board[0].length; j++){
             if(board[i][j].value === -1){
-                context.image(horizontal, verticle, 'Empty');
+                context.image(horizontal, verticle, 'Black');
             }else{
                 context.image(horizontal, verticle, board[i][j].colour);
             }
@@ -635,18 +636,18 @@ const checkForCollision = (board, tetrimino, startingLine, blocksIn) => {
 };
 
 const checkForCollisionLeft = (board, tetrimino, startingLine, blocksIn) => {
-    console.log(startingLine);
     if(blocksIn === 0){
         return false;
     }
     let tetriminoCoords = getTetriminoState(tetrimino);
     tetriminoCoords = clearMarks(tetriminoCoords);
     tetriminoCoords = markTetriminoLeft(tetriminoCoords);
+    console.log(tetriminoCoords);
     for(let i = 0; i < tetriminoCoords.length; i++) {
         for (let j = 0; j < tetriminoCoords[0].length; j++) {
             if (!tetriminoCoords[i][j].marked) {
                 if(tetriminoCoords[i][j] === 0){
-                    if(board[startingLine][blocksIn-1].value === 0){
+                    if(board[startingLine+i][blocksIn-1].value === 0){
                         return true;
                     }
                 }
@@ -729,8 +730,9 @@ const getTetriminoState = (tetrimino) => {
 
 function onEvent ()
 {
+    clearImagesFromCache(this.nextTetrimino, this.add);
     this.currentPostition++;
-    this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
+    this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'down');
     if(this.board.end){
         this.currentPostition = 0;
         this.blocksIn = 4;
