@@ -18,7 +18,14 @@ class mainGame extends Phaser.Scene {
     }
 
     create(){
-        this.timedEvent = this.time.addEvent({ delay: 1000, callback: onEvent, callbackScope: this, loop: true });
+        //this.timedEvent = this.time.addEvent({ delay: 1000, callback: onEvent, callbackScope: this, loop: true });
+        this.stats = {
+            score: 0,
+            level: 1,
+            lines: 0
+        };
+        this.level = 1;
+        this.lines = 0;
         this.currentPostition = 0;
         this.blocksIn = 4;
         this.add.image(335,245, 'Board');
@@ -30,9 +37,12 @@ class mainGame extends Phaser.Scene {
         this.nextTetrimino = getTetrimino();
         drawNextTetriminoWindow(this.nextTetrimino, this.add);
         this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
+        this.add.text(480, 95, this.stats.score, { fontSize: '32px', fill: '#000' });
+        this.add.text(480, 185, this.stats.level, { fontSize: '32px', fill: '#000' });
+        this.add.text(480, 260, this.stats.lines, { fontSize: '32px', fill: '#000' });
         this.input.keyboard.on('keydown-S', () => {
             //Clear the images from memory to avoid memory leak
-            clearImagesFromCache(this.nextTetrimino, this.add);
+            clearImagesFromCache(this.nextTetrimino, this.add, this.score, this.level, this.lines);
             this.currentPostition++;
             this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'down');
             if(this.board.end){
@@ -64,10 +74,13 @@ class mainGame extends Phaser.Scene {
     }
 }
 
-const clearImagesFromCache = (nextTetrimino, context) => {
+const clearImagesFromCache = (nextTetrimino, context, score, level, lines) => {
     //Images stored in this.add.displayList.list
     context.displayList.list = [];
     context.image(335,245, 'Board');
+    context.text(480, 95, score, { fontSize: '32px', fill: '#000' });
+    context.text(480, 185, level, { fontSize: '32px', fill: '#000' });
+    context.text(480, 260, lines, { fontSize: '32px', fill: '#000' });
     drawNextTetriminoWindow(nextTetrimino, context);
 };
 
@@ -156,7 +169,7 @@ const clearTetrimino = (board, tetrimino, startingLine, blocksIn, context) => {
     }
     board = redrawBoard(board, context);
     return board;
-}
+};
 
 const redrawBoard = (board, context) => {
     let horizontal = 108;
@@ -173,7 +186,84 @@ const redrawBoard = (board, context) => {
         horizontal = 108;
         verticle += 18;
     }
+
     return board;
+};
+
+const checkForCompletedLines = (board) => {
+    let completedLines = 0;
+    let lineComplete = false;
+    //Track line location of clears
+    let location = [];
+    for(let i = 0; i < board.length; i++){
+        if(board[i][0].value === -1){
+            continue;
+        }
+        for(let j = 0; j < board[0].length; j++){
+            if(board[i][j].value === -1){
+                break;
+            }else if(j === board[0].length - 1 && board[i][j].value === 0){
+                completedLines++;
+                location.push(i);
+                lineComplete = true;
+            }
+        }
+    }
+    if(lineComplete){
+        //Clear Line
+        //Move lines down
+        //Add score
+        //Update Lines Cleared
+        for(let i = 0; i < location.length; i++){
+            for(let j = 0; j < board[0].length; j++){
+                board[location[i]][j] = {value: -1, colour: 'Empty'};
+            }
+        }
+        dropLines(board);
+
+    }
+    console.log(lineComplete);
+
+    return board;
+};
+
+const dropLines = (board) => {
+   let line = [];
+   let droppingLines = true;
+   while(droppingLines){
+       for(let i = 0; i < board.length; i++){
+           let blockExists = false;
+           for(let j = 0; j < board[0].length; j++){
+               line.push(board[i][j]);
+               if(board[i][j].value === 0){
+                   blockExists = true;
+               }
+           }
+           if(blockExists === true){
+               if((i+1) !== board.length){
+                   let lineEmpty = true;
+                   for(let k = 0; k < board[0].length; k++){
+                       if(board[i+1][k].value === 0){
+                           lineEmpty = false;
+                       }
+                   }
+                   if(lineEmpty){
+                       for(let l = 0; l < board[0].length; l++){
+                           board[i][l] = {value: -1, colour: 'Empty'};
+                           board[i+1][l] = line[l];
+                       }
+                       dropLines(board);
+                   }
+               }
+           }
+           line = [];
+           if((i+1) === board.length){
+               droppingLines = false;
+           }
+       }
+   }
+
+
 };
 
 const getTetrimino = () => {
@@ -609,6 +699,7 @@ const updateBoard = (board, tetrimino, startingLine, blocksIn, context, movement
 
     board = redrawBoard(board, context);
     if(checkForCollision(board, tetrimino, startingLine, blocksIn)){
+        board = checkForCompletedLines(board);
         return {board: board, end: true};
     }else{
         return board;
@@ -642,7 +733,6 @@ const checkForCollisionLeft = (board, tetrimino, startingLine, blocksIn) => {
     let tetriminoCoords = getTetriminoState(tetrimino);
     tetriminoCoords = clearMarks(tetriminoCoords);
     tetriminoCoords = markTetriminoLeft(tetriminoCoords);
-    console.log(tetriminoCoords);
     for(let i = 0; i < tetriminoCoords.length; i++) {
         for (let j = 0; j < tetriminoCoords[0].length; j++) {
             if (!tetriminoCoords[i][j].marked) {
