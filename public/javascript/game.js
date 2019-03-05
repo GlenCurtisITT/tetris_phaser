@@ -2,6 +2,9 @@ var config = {
     type: Phaser.AUTO,
     width: 670,
     height: 490,
+    audio: {
+        disableWebAudio: true
+    },
     scene: [mainGame, menu]
 };
 
