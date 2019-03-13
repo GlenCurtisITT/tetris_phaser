@@ -5,7 +5,7 @@ var config = {
     audio: {
         disableWebAudio: true
     },
-    scene: [mainGame, menu]
+    scene: [menu, mainGame, gameover]
 };
 
 var game = new Phaser.Game(config);

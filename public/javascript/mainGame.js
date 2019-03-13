@@ -3,6 +3,11 @@ class mainGame extends Phaser.Scene {
         super({key: "mainGame"})
     }
 
+    init(data)
+    {
+        this.level = data.level;
+    }
+
     preload(){
         this.load.image('Board', 'assets/board.png');
         this.load.image('Empty', 'assets/emptyBlocko.png');
@@ -18,13 +23,12 @@ class mainGame extends Phaser.Scene {
     }
 
     create(){
-        //this.timedEvent = this.time.addEvent({ delay: 1000, callback: moveDownOnTimer, callbackScope: this, loop: true });
+        this.timedEvent = this.time.addEvent({ delay: 900 - (this.level * 100), callback: moveDownOnTimer, callbackScope: this, loop: true });
         this.stats = {
             score: 0,
-            level: 1,
+            level: this.level,
             lines: 0
         };
-        this.level = 1;
         this.lines = 0;
         this.currentPostition = 0;
         this.blocksIn = 4;
@@ -56,8 +60,9 @@ class mainGame extends Phaser.Scene {
                 this.blocksIn = 4;
                 this.currentTetrimino = this.nextTetrimino;
                 this.nextTetrimino = getTetrimino();
-                if(gameOver(this.board)){
-                    this.scene.start('menu')
+                if(gameOver(this.board, this.currentTetrimino, this.blocksIn)){
+                    //Pass stats to gameover scene
+                    this.scene.start('gameover', {stats: this.stats});
                 }
                 drawNextTetriminoWindow(this.nextTetrimino, this.add);
                 this.board = updateBoard(this.board.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, '', this.stats);
@@ -92,23 +97,26 @@ class mainGame extends Phaser.Scene {
         - Update board
          */
         this.input.keyboard.on('keydown-D', () => {
+            checkForCollisionRight(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn);
            let tetriCoords = getTetriminoState(this.currentTetrimino);
-           if(this.blocksIn + tetriCoords[0].length !== 10){
+           if(this.blocksIn + tetriCoords[0].length !== 10 && !checkForCollisionRight(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn)){
                this.blocksIn++;
                this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'right', this.stats);
            }
+        });
+        this.input.keyboard.on('keydown-ESC', () => {
+            this.scene.start('menu');
         });
     }
 }
 
 /*
-- Check if any coloured blocks exist in the first two lines of the board
+- Check if any coloured blocks exist in the first three lines of the board under the current tetrimino
 - If they do game over
  */
-const gameOver = (board) => {
-    console.log(board);
-    for(let i = 0; i < 2; i++){
-        for(let j = 0; j < board.board[0].length; j++){
+const gameOver = (board, currentTetrimino, blocksIn) => {
+    for(let i = 0; i < 3; i++){
+        for(let j = blocksIn; j < board.board[0].length - currentTetrimino.initPosition[0].length; j++){
             if(board.board[i][j].value === 0){
                 return true;
             }
@@ -489,6 +497,16 @@ const getTetrimino = () => {
  */
 const updateBoard = (board, tetrimino, startingLine, blocksIn, context, movement, stats) => {
     let tetriminoCoords = getTetriminoState(tetrimino);
+    tetriminoCoords = clearMarks(tetriminoCoords);
+    //Issue caused by moving a piece left or right while it is over another piece
+    //End flag is set. Get rid of this flag and check for collision.
+    if(board.board){
+        board = board.board;
+        if(checkForCollision(board, tetrimino, startingLine, blocksIn)){
+            board = checkForCompletedLines(board, stats);
+            return {board: board, end: true};
+        }
+    }
     let tetriIndex = 0;
     let horizontal = 108 + (18 * blocksIn);
     let verticle = 65 + (18 * startingLine);
@@ -910,6 +928,26 @@ const checkForCollisionLeft = (board, tetrimino, startingLine, blocksIn) => {
     }
 };
 
+const checkForCollisionRight = (board, tetrimino, startingLine, blocksIn) => {
+    let tetriminoCoords = getTetriminoState(tetrimino);
+    if((blocksIn + tetriminoCoords[0].length === 10)){
+        return false;
+    }
+    tetriminoCoords = clearMarks(tetriminoCoords);
+    tetriminoCoords = markTetriminoRight(tetriminoCoords);
+    for(let i = 0; i < tetriminoCoords.length; i++){
+        for(let j = 0; j < tetriminoCoords[0].length; j++){
+            if (!tetriminoCoords[i][j].marked) {
+                if(tetriminoCoords[i][j] === 0){
+                    if(board[startingLine+i][blocksIn+tetriminoCoords[0].length].value === 0){
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+};
+
 /*
 - If we add a mark into a Tetrimino we want to remove it before updating the board
  */
@@ -955,6 +993,9 @@ const markTetrimino = (tetriminoCoords) => {
     return tetriminoCoords;
 };
 
+/*
+- Mark a Tetris block so it can't collide with itself when moving left
+ */
 const markTetriminoLeft = (tetriminoCoords) => {
     for(let i = 0; i < tetriminoCoords.length; i++) {
         for (let j = 0; j < tetriminoCoords[0].length; j++) {
@@ -965,6 +1006,26 @@ const markTetriminoLeft = (tetriminoCoords) => {
                         tetriminoCoords[i][blockRight+1] = {value: 0, marked: true};
                     }
                     blockRight++;
+                }
+            }
+        }
+    }
+    return tetriminoCoords;
+};
+
+/*
+- Mark a Tetris block so it can't collide with itself when moving right
+ */
+const markTetriminoRight = (tetriminoCoords) => {
+    for(let i = 0; i < tetriminoCoords.length; i++){
+        for(let j = 0; j < tetriminoCoords[0].length; j++){
+            let blockLeft = tetriminoCoords[0].length-1;
+            if(tetriminoCoords[i][j] === 0){
+                while(blockLeft > 0){
+                    if(tetriminoCoords[i][blockLeft-1] === 0){
+                        tetriminoCoords[i][blockLeft-1] = {value: 0, marked: true};
+                    }
+                    blockLeft--;
                 }
             }
         }
@@ -986,8 +1047,7 @@ const getTetriminoState = (tetrimino) => {
     return tetriminoCoords;
 };
 
-function moveDownOnTimer()
-{
+function moveDownOnTimer(){
     clearImagesFromCache(this.nextTetrimino, this.add, this.stats);
     this.currentPostition++;
     this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'down', this.stats);
@@ -996,7 +1056,10 @@ function moveDownOnTimer()
         this.blocksIn = 4;
         this.currentTetrimino = this.nextTetrimino;
         this.nextTetrimino = getTetrimino();
-        //drawNextTetrimino(this.nextTetrimino, this.nextTetrimino.colour, this.add);
+        if(gameOver(this.board, this.currentTetrimino, this.blocksIn)){
+            this.scene.start('gameover', {stats: this.stats});
+        }
+        drawNextTetriminoWindow(this.nextTetrimino, this.add);
         this.board = updateBoard(this.board.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, this.stats);
     }
 }
