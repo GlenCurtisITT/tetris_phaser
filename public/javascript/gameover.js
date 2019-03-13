@@ -6,14 +6,16 @@ class gameover extends Phaser.Scene {
     init(data)
     {
         this.stats = data.stats;
-        console.log(this.stats);
     }
 
     preload(){
         this.load.image('Board', 'assets/board.png');
+        this.load.audio('GameOver', 'assets/gameover.mp3');
     }
 
     create(){
+        this.gameover = this.sound.add('GameOver', {volume: 0.2});
+        this.gameover.play();
         this.add.image(335,245, 'Board');
 
         this.add.text(100, 80, `GAMEOVER`, { fontSize: '32px', fill: '#c4cfa1', fontFamily: 'Arial' });

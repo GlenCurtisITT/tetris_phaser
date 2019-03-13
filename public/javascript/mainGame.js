@@ -20,9 +20,20 @@ class mainGame extends Phaser.Scene {
         this.load.image('Blue', 'assets/blueBlocko.png');
         this.load.image('DarkBlue', 'assets/darkBlueBlocko.png');
         this.load.image('Orange', 'assets/orangeBlocko.png');
+
+        this.load.audio('backgroundMusic', 'assets/Tetris.mp3');
+        this.load.audio('PieceRotation', 'assets/whoosh.mp3');
+        this.load.audio('Drop', 'assets/drop.mp3');
+        this.load.audio('LineClear', 'assets/lineClear.mp3');
     }
 
     create(){
+        this.backgroundMusic = this.sound.add('backgroundMusic', {volume: 0.2});
+        this.backgroundMusic.loop = true;
+        this.pieceRotation = this.sound.add('PieceRotation', {volume: 0.2});
+        this.pieceDrop = this.sound.add('Drop', {volume: 0.2});
+        this.lineClear = this.sound.add('LineClear', {volume: 0.2});
+        this.backgroundMusic.play();
         this.timedEvent = this.time.addEvent({ delay: 900 - (this.level * 100), callback: moveDownOnTimer, callbackScope: this, loop: true });
         this.stats = {
             score: 0,
@@ -40,7 +51,7 @@ class mainGame extends Phaser.Scene {
         this.currentTetrimino = getTetrimino();
         this.nextTetrimino = getTetrimino();
         drawNextTetriminoWindow(this.nextTetrimino, this.add);
-        this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, '', this.stats);
+        this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, '', this.stats, this.lineClear);
         //Add stats onto page
         this.add.text(480, 95, this.stats.score, { fontSize: '32px', fill: '#000' });
         this.add.text(480, 185, this.stats.level, { fontSize: '32px', fill: '#000' });
@@ -54,7 +65,7 @@ class mainGame extends Phaser.Scene {
         this.input.keyboard.on('keydown-S', () => {
             clearImagesFromCache(this.nextTetrimino, this.add, this.stats);
             this.currentPostition++;
-            this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'down', this.stats);
+            this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'down', this.stats, this.lineClear);
             if(this.board.end){
                 this.currentPostition = 0;
                 this.blocksIn = 4;
@@ -62,10 +73,12 @@ class mainGame extends Phaser.Scene {
                 this.nextTetrimino = getTetrimino();
                 if(gameOver(this.board, this.currentTetrimino, this.blocksIn)){
                     //Pass stats to gameover scene
+                    this.backgroundMusic.stop();
                     this.scene.start('gameover', {stats: this.stats});
                 }
+                this.pieceDrop.play();
                 drawNextTetriminoWindow(this.nextTetrimino, this.add);
-                this.board = updateBoard(this.board.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, '', this.stats);
+                this.board = updateBoard(this.board.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, '', this.stats, this.lineClear);
             }
         });
         /*
@@ -74,7 +87,7 @@ class mainGame extends Phaser.Scene {
         - Check change state function for more information.
          */
         this.input.keyboard.on('keydown-W', () => {
-            this.board = changeState(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add);
+            this.board = changeState(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, this.stats, this.pieceRotation, this.lineClear);
         });
         /*
         When A key is pressed:
@@ -86,7 +99,7 @@ class mainGame extends Phaser.Scene {
         this.input.keyboard.on('keydown-A', () => {
             if(this.blocksIn !== 0 && !checkForCollisionLeft(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn)){
                 this.blocksIn--;
-                this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'left', this.stats);
+                this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'left', this.stats, this.lineClear);
             }
         });
         /*
@@ -101,10 +114,11 @@ class mainGame extends Phaser.Scene {
            let tetriCoords = getTetriminoState(this.currentTetrimino);
            if(this.blocksIn + tetriCoords[0].length !== 10 && !checkForCollisionRight(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn)){
                this.blocksIn++;
-               this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'right', this.stats);
+               this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'right', this.stats, this.lineClear);
            }
         });
         this.input.keyboard.on('keydown-ESC', () => {
+            this.backgroundMusic.stop();
             this.scene.start('menu');
         });
     }
@@ -205,7 +219,7 @@ const drawNextTetriminoWindow = (tetrimino, context) => {
 - Error checking to make sure that the state change does not overflow the right side of the screen
 - If it does overflow do nothing and return board.
  */
-const changeState = (board, tetrimino, startingLine, blocksIn, context, stats) => {
+const changeState = (board, tetrimino, startingLine, blocksIn, context, stats, sound, soundTwo) => {
     //Deep copy object
     let tempTetrimino = Object.assign({}, tetrimino);
     tempTetrimino = changeTetriminoState(tempTetrimino);
@@ -214,7 +228,8 @@ const changeState = (board, tetrimino, startingLine, blocksIn, context, stats) =
     if(tempTetrimino[0].length + blocksIn <= 10){
         board = clearTetrimino(board, tetrimino, startingLine, blocksIn, context);
         tetrimino = changeTetriminoState(tetrimino);
-        board = updateBoard(board, tetrimino, startingLine, blocksIn, context, stats);
+        board = updateBoard(board, tetrimino, startingLine, blocksIn, context, stats, sound);
+        sound.play();
         return board;
     }
     return board;
@@ -281,7 +296,7 @@ const redrawBoard = (board, context) => {
 /*
 - Called when the End board flag is pushed to board (Tetrimino has collision or reaches bottom)
  */
-const checkForCompletedLines = (board, stats) => {
+const checkForCompletedLines = (board, stats, sound) => {
     let completedLines = 0;
     let lineComplete = false;
     let location = [];
@@ -316,6 +331,7 @@ const checkForCompletedLines = (board, stats) => {
                 board[location[i]][j] = {value: -1, colour: 'Empty'};
             }
         }
+        sound.play();
         updateScore(completedLines, stats);
         dropLines(board);
     }
@@ -379,7 +395,7 @@ const dropLines = (board) => {
                            lineEmpty = false;
                        }
                    }
-                   //This if statement fires if there is a line with a block-
+                   //This if statement fires if there is a line with a block
                    //directly above a line that is currently empty. Resulting in a floating block
                    if(lineEmpty){
                        //If this is the case loop from left to right of the board at current position (i)
@@ -495,7 +511,7 @@ const getTetrimino = () => {
 - Use this info to draw the images to the board and fix issues from Tetrimino's moving around
 - More information in inline comments
  */
-const updateBoard = (board, tetrimino, startingLine, blocksIn, context, movement, stats) => {
+const updateBoard = (board, tetrimino, startingLine, blocksIn, context, movement, stats, sound) => {
     let tetriminoCoords = getTetriminoState(tetrimino);
     tetriminoCoords = clearMarks(tetriminoCoords);
     //Issue caused by moving a piece left or right while it is over another piece
@@ -503,7 +519,7 @@ const updateBoard = (board, tetrimino, startingLine, blocksIn, context, movement
     if(board.board){
         board = board.board;
         if(checkForCollision(board, tetrimino, startingLine, blocksIn)){
-            board = checkForCompletedLines(board, stats);
+            board = checkForCompletedLines(board, stats, sound);
             return {board: board, end: true};
         }
     }
@@ -864,7 +880,7 @@ const updateBoard = (board, tetrimino, startingLine, blocksIn, context, movement
     board = redrawBoard(board, context);
     //Check for collision going down vertically
     if(checkForCollision(board, tetrimino, startingLine, blocksIn)){
-        board = checkForCompletedLines(board, stats);
+        board = checkForCompletedLines(board, stats, sound);
         return {board: board, end: true};
     }else{
         return board;
@@ -1050,15 +1066,17 @@ const getTetriminoState = (tetrimino) => {
 function moveDownOnTimer(){
     clearImagesFromCache(this.nextTetrimino, this.add, this.stats);
     this.currentPostition++;
-    this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'down', this.stats);
+    this.board = updateBoard(this.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, 'down', this.stats, this.lineClear);
     if(this.board.end){
         this.currentPostition = 0;
         this.blocksIn = 4;
         this.currentTetrimino = this.nextTetrimino;
         this.nextTetrimino = getTetrimino();
         if(gameOver(this.board, this.currentTetrimino, this.blocksIn)){
+            this.backgroundMusic.stop();
             this.scene.start('gameover', {stats: this.stats});
         }
+        this.pieceDrop.play();
         drawNextTetriminoWindow(this.nextTetrimino, this.add);
         this.board = updateBoard(this.board.board, this.currentTetrimino, this.currentPostition, this.blocksIn, this.add, this.stats);
     }
