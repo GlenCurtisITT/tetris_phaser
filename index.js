@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-const port = 3000;
+let port = process.env.PORT || 3000;
 
 app.use('/css',express.static(__dirname + '/css'));
 app.use('/javascript',express.static(__dirname + '/public/javascript'));
